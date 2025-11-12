@@ -1,8 +1,21 @@
 {
   "manifest_version": 3,
+  "name": "Download Manager",
   "version": "1.0.0",
-  "name": "Chrome Extension Template",
+  "description": "Download Manager Extension",
   "action": {
     "default_popup": "index.html"
-  }
+  },
+  "background": {
+    "service_worker": "service-worker.js"
+  },
+  "permissions": [
+    "downloads",
+    "downloads.shelf",
+    "storage",
+    "notifications"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ]
 }
