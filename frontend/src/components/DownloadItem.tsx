@@ -9,11 +9,36 @@ type Status = 'in_progress' | 'finished' | 'paused'
 
 interface DownloadItemProps {
     status: Status;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    download: chrome.downloads.DownloadItem;
 }
 
 export function DownloadItem({
     status,
+    download
 } : DownloadItemProps) {
+
+    const convertKbToMb = (kbyte: number) => {
+        return kbyte / 1024
+    }
+
+    const convertKbToGb = (kbyte: number) => {
+        return kbyte / (1024 * 1024);
+    }
+
+    const formatFileSizeFromKb = (kbyte: number) => {
+        switch (true) {
+            case kbyte >= 1024 * 1024:
+                return `${(convertKbToGb(kbyte)).toFixed(2)} GB`
+            case kbyte >= 1024:
+                return `${(convertKbToMb(kbyte)).toFixed(2)} MB`
+            default: 
+                return `${kbyte.toFixed(2)} KB`
+        }
+    }
+
+    const progressPercentage = ((download.bytesReceived / download.totalBytes) * 100).toFixed(2);
+
     return (
         <div className="border border-t-gray-700 border-b-gray-700 p-4">
             <div className="flex justify-between">
@@ -28,11 +53,11 @@ export function DownloadItem({
                     }
 
                     <div className="flex flex-col">
-                        <h2 className="text-white font-semibold text-[0.9rem]">file name.zip</h2>
+                        <h2 className="text-white font-semibold text-[0.9rem]">{download.filename}</h2>
                         <h2 
                             className="text-gray-400 text-[0.9rem]"
                         >
-                            <span className="mr-2">150 MB</span>* 
+                            <span className="mr-2">{formatFileSizeFromKb(download.fileSize)}</span>* 
                             {
                                 status === "finished" ? 
                                     <span className="text-green-400 text-[0.8rem] ml-2">Finished</span> :
@@ -70,8 +95,12 @@ export function DownloadItem({
                 </div>
 
                 <div className="flex justify-between mt-1">
-                    <span className="text-[0.9rem] text-gray-400">45.5%</span>
-                    <h2 className="text-[0.9rem] text-gray-400"><span>68.25MB</span> de <span>150MB</span></h2>
+                    <span className="text-[0.9rem] text-gray-400">{progressPercentage}</span>
+                    <h2 
+                        className="text-[0.9rem] text-gray-400"
+                    >
+                        <span>{formatFileSizeFromKb(download.bytesReceived)}</span> de <span>{formatFileSizeFromKb(download.totalBytes)}</span>
+                    </h2>
                 </div>
             </div>
         </div>
