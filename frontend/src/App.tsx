@@ -1,11 +1,28 @@
+/// <reference types="chrome" />
+/// <reference lib="webworker" />
 
+// import { useState } from "react";
+import { useEffect, useState } from "react"
 import { DownloadItem } from "./components/DownloadItem"
-
 
 function App() {
 
-	// const [activeDownloads, setActiveDownloads] = useState([]);
-	// const [historyDownloads, setHistoryDownloads] = useState([]);
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const [activeDownloads, setActiveDownloads] = useState<any[]>([]);
+
+	useEffect(() => {
+		if (typeof chrome !== "undefined" && chrome.runtime?.onMessage) {
+
+			chrome.runtime.sendMessage({ type: "getDownloads" }, response => {
+				setActiveDownloads(response.downloads);
+
+				console.log('receiving new download: ', response);
+				console.log('active downloads: ', activeDownloads);
+			})	
+		}
+
+	}, [])
+
 
 	return (
 		<div className="w-[350px]">
@@ -30,6 +47,10 @@ function App() {
 				<DownloadItem status="in_progress"/>
 				<DownloadItem status="paused"/>
 				<DownloadItem status="finished"/>
+
+				{activeDownloads.map(() => (
+					<DownloadItem status="in_progress"/>
+				))}
 			</main>
 
 			<footer className="p-3 bg-gray-800 flex justify-between">
