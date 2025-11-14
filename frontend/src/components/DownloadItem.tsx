@@ -4,13 +4,13 @@ import { DownloadIcon } from "./Icons/DownloadIcon";
 import { CloseIcon } from "./Icons/CloseIcon";
 import { CheckedIcon } from "./Icons/CheckedIcon";
 import { TrashIcon } from "./Icons/TrashIcon";
+import type { MyDownload } from "../service-worker";
 
 type Status = 'in_progress' | 'finished' | 'paused'
 
 interface DownloadItemProps {
     status: Status;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    download: chrome.downloads.DownloadItem;
+    download: MyDownload;
 }
 
 export function DownloadItem({
@@ -37,7 +37,7 @@ export function DownloadItem({
         }
     }
 
-    const progressPercentage = ((download.bytesReceived / download.totalBytes) * 100).toFixed(2);
+    const progressPercentage = ((download.receivedBytes / download.totalBytes) * 100).toFixed(2);
 
     return (
         <div className="border border-t-gray-700 border-b-gray-700 p-4">
@@ -53,11 +53,11 @@ export function DownloadItem({
                     }
 
                     <div className="flex flex-col">
-                        <h2 className="text-white font-semibold text-[0.9rem]">{download.filename}</h2>
+                        <h2 className="text-white font-semibold text-[0.9rem]">{download.name}</h2>
                         <h2 
                             className="text-gray-400 text-[0.9rem]"
                         >
-                            <span className="mr-2">{formatFileSizeFromKb(download.fileSize)}</span>* 
+                            <span className="mr-2">{formatFileSizeFromKb(download.totalBytes)}</span>* 
                             {
                                 status === "finished" ? 
                                     <span className="text-green-400 text-[0.8rem] ml-2">Finished</span> :
@@ -99,7 +99,7 @@ export function DownloadItem({
                     <h2 
                         className="text-[0.9rem] text-gray-400"
                     >
-                        <span>{formatFileSizeFromKb(download.bytesReceived)}</span> de <span>{formatFileSizeFromKb(download.totalBytes)}</span>
+                        <span>{formatFileSizeFromKb(download.receivedBytes)}</span> de <span>{formatFileSizeFromKb(download.totalBytes)}</span>
                     </h2>
                 </div>
             </div>

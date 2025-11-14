@@ -3,11 +3,11 @@
 
 import { useEffect, useState } from "react"
 import { DownloadItem } from "./components/DownloadItem"
-import type { Download } from "./service-worker";
+import type {  MyDownload } from "./service-worker";
 import { DownloadIcon } from "./components/Icons/DownloadIcon";
 
 function App() {
-	const [activeDownloads, setActiveDownloads] = useState<Download[]>([]);
+	const [activeDownloads, setActiveDownloads] = useState<MyDownload[]>([]);
 
 	//Only runs on extension environtment (not node)
 	useEffect(() => {
@@ -22,7 +22,6 @@ function App() {
 
 	const downloadsLength = activeDownloads.length;
 	const activeDownloadsLength = activeDownloads.filter((d) => d.state === "in_progress").length;
-
 
 	return (
 		<div className="w-[350px]">
