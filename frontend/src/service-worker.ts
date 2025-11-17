@@ -196,6 +196,7 @@ export interface MyDownload {
 }
 
 const myDownloads = new Map<number, MyDownload>();
+const pendingDownloads = new Map<number, { url: string, processed: boolean }>();
 
 const isDataUrl = (url: string) => url.startsWith("data:");
 
@@ -342,60 +343,93 @@ function uint8ToBase64(bytes: Uint8Array) {
     return btoa(binary);
 }
 
-const extensionCreatedDownloads = new Set<string>();
-
-// Função auxiliar para gerar um identificador único
-function generateDownloadKey(url: string, filename: string): string {
-    return `${url}_${filename}`;
-}
-
 chrome.downloads.onCreated.addListener(async (download: Download) => {
-    //avoid eternal loops
-    console.log('dowlnoad ob: ', download);
-    const downloadKey = generateDownloadKey(download.url, download.filename);
-    
-    // Se este download foi criado pela extensão, apenas o remove do Set e retorna
-    if (extensionCreatedDownloads.has(downloadKey)) {
-        extensionCreatedDownloads.delete(downloadKey);
-        console.log('Download criado pela extensão, ignorando...');
-        return;
-    }
-    
-    // Se é uma data URL, também ignora (downloads da extensão usam data URLs)
     if (download.url.startsWith('data:')) {
         console.log('Data URL detectada, ignorando...');
         return;
     }
 
-    console.log("Intercepted:", download);
+    console.log("Download interceptado:", download);
+    
+    // Marca como pendente e não processado
+    pendingDownloads.set(download.id, { url: download.url, processed: false });
+});
 
-    chrome.downloads.cancel(download.id);
+chrome.downloads.onChanged.addListener(async (delta: chrome.downloads.DownloadDelta) => {
+    const pending = pendingDownloads.get(delta.id);
+    
+    if (!pending) {
+        return;
+    }
+    
+    // Se já foi processado, ignora
+    if (pending.processed) {
+        return;
+    }
 
+    // Busca o download completo
+    const downloads = await chrome.downloads.search({ id: delta.id });
+    
+    if (downloads.length === 0) {
+        console.log('Download não encontrado');
+        return;
+    }
+    
+    const download = downloads[0];
+    
+    // Verifica se o filename está disponível E se o download já começou a receber bytes
+    if (!download.filename || download.bytesReceived === 0) {
+        console.log('Esperando filename e início do download...', {
+            filename: download.filename,
+            bytesReceived: download.bytesReceived,
+            state: download.state
+        });
+        return;
+    }
+
+    console.log('Filename disponível:', download.filename);
+    console.log('Processando download...');
+
+    pending.processed = true;
+    
+    const filename = download.filename;
+    const url = pending.url;
+    
+    pendingDownloads.delete(delta.id);
+    await chrome.downloads.cancel(delta.id);
+    
     const myDownload: MyDownload = {
-        id: download.id,
-        url: download.url,
-        name: download.filename,
+        id: delta.id,
+        url: url,
+        name: filename,
         totalBytes: 0,
         receivedBytes: 0,
         state: "in_progress",
         segments: DOWNLOAD_SEGMENTS,
     };
 
-    myDownloads.set(download.id, myDownload);
+    myDownloads.set(delta.id, myDownload);
 
-    console.log('download started');
-    const finalBytes = await segmentedDownload(download.id, download.url, DOWNLOAD_SEGMENTS);
-    console.log('download finished');
+    console.log('Download segmentado iniciado');
+    try {
+        const finalBytes = await segmentedDownload(delta.id, url, DOWNLOAD_SEGMENTS);
+        console.log('Download segmentado concluído');
 
-    const base64 = uint8ToBase64(finalBytes);
+        const base64 = uint8ToBase64(finalBytes);
+        const dataUrl = `data:application/octet-stream;base64,${base64}`;
 
-    const dataUrl = `data:application/octet-stream;base64,${base64}`;
-
-    chrome.downloads.download({
-        url: dataUrl,
-        filename: download.filename || "arquivo",
-        saveAs: true,
-    });
-
-    return true;
+        console.log('filename updated: ', filename);
+        chrome.downloads.download({
+            url: dataUrl,
+            filename: filename,
+            saveAs: true,
+        });
+    } catch (error) {
+        console.error('Erro no download segmentado:', error);
+        const d = myDownloads.get(delta.id);
+        if (d) {
+            d.state = "error";
+            myDownloads.set(delta.id, d);
+        }
+    }
 });
